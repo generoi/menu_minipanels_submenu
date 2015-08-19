@@ -1,0 +1,5 @@
+name = Menu Minipanels Submenu
+description = Contextual submenus for minipanel menus Contextual submenus for minipanel menus
+package = Custom
+core = 7.x
+dependencies[] = menu_minipanels

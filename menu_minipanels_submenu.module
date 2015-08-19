@@ -1,0 +1,80 @@
+<?php
+
+/**
+ * Implements hook_ctools_plugin_directory().
+ */
+function menu_minipanels_submenu_ctools_plugin_directory($owner, $plugin_type) {
+  return 'plugins/' . $plugin_type;
+}
+
+/**
+ * Prepare minipanel variables for the template layer.
+ * @see menu_minipanels_preprocess_menu_minipanel().
+ */
+function menu_minipanels_submenu_preprocess_menu_minipanel(&$vars) {
+  // Create a page manager context for the menu item.
+  $menu_link = menu_link_load($vars['mlid']);
+  $context = ctools_context_create('menu_minipanels_submenu', $menu_link);
+
+  // Create a rendered submenu minipanel based on the provided minipanel_name
+  if ($context) {
+    $panel = menu_minipanels_submenu_render($vars['minipanel_name'], array('menu_minipanels' => $context));
+  }
+  // Create a rendered minipanel based on the provided minipanel_name
+  else {
+    $panel = panels_mini_block_view($vars['minipanel_name']);
+  }
+  $vars['minipanel'] = $panel['content'];
+
+  // Remove default class added by Drupal, which messes up our theming.
+  unset($vars['classes_array'][0]);
+
+  // Add our custom classes.
+  $vars['classes_array'][] = 'menu-minipanel-panel';
+  $vars['classes_array'][] = drupal_html_class('menu-minipanel-' . $vars['minipanel_name']);
+}
+
+/**
+ * Render a mini panel based on context.
+ */
+function menu_minipanels_submenu_render($minipanel_name, $contexts = array()) {
+  $panel_mini = panels_mini_load($minipanel_name);
+  if (empty($panel_mini)) {
+    // Bail out early if the specified mini panel doesn't exist.
+    return;
+  }
+
+  ctools_include('context');
+  // @todo
+  // if (module_exists('page_manager') && $current_page = page_manager_get_current_page()) {
+  //   if (!empty($current_page['contexts'])) {
+  //     $contexts += ctools_context_match_required_contexts($panel_mini->requiredcontexts, $current_page['contexts']);
+  //   }
+  // }
+
+  $panel_mini->context = $panel_mini->display->context = ctools_context_load_contexts($panel_mini, FALSE, $contexts);
+  $panel_mini->display->css_id = panels_mini_get_id($panel_mini->name);
+
+  $panel = array();
+  $panel['content'] = panels_render_display($panel_mini->display);
+  $panel['subject'] = $panel_mini->display->get_title();
+  return $panel;
+}
+
+/**
+ * Implements hook_menu_link_alter().
+ *
+ * Preserve the menu item options during taxonomy_menu synchronizations.
+ */
+function menu_minipanels_submenu_menu_link_alter(&$item) {
+  // Only act on menu links saved by taxonomy_menu.
+  if (empty($item['module']) || $item['module'] != 'taxonomy_menu') {
+    return;
+  }
+
+  if (!empty($item['mlid']) && $existing = menu_link_load($item['mlid'])) {
+    $new_options = $item['options'];
+    $existing_options = $existing['options'];
+    $item['options'] = drupal_array_merge_deep($existing_options, $new_options);
+  }
+}
